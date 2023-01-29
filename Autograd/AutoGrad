@@ -49,11 +49,8 @@ class Value:
         """
         Multiplication operation (e.g. Value(3) * Value(2) = Value(6))
         """
-        #Firstly, convert some default value type in python to Value
-        #Then do operations with two or more Value object
         other = other if isinstance(other, Value) else Value(other)
 
-        #Secondly, create a new Value object which is the result of the operation 
         out = Value(self.data * other.data, (self, other))
 
         def _backward():
@@ -123,7 +120,7 @@ class Value:
         """
         #This function is called when you start backpropagation from this Value
 
-        #The gradient of this value is initialized to 1 for you.
+        #The gradient of this value is initialized to 1
         self.grad = 1
 
         #topological sort to find order of nodes to backpropagate
@@ -140,9 +137,7 @@ class Value:
 
         for v in topo:
             v._backward()
-        print(topo)
 
-    # We handled the negation and reverse operations for you
     def __neg__(self): # -self
         """
         Negate the current Value
