@@ -1,0 +1,192 @@
+## Import Packages
+import random
+import numpy as np
+import matplotlib.pyplot as plt
+
+class Value:
+    
+    """
+    Basic unit of storing a single scalar value and its gradient
+    """
+    
+    def __init__(self, data, _children=()):
+        """
+        
+        """
+        self.data = data
+        self.grad = 0
+        self._prev = set(_children)
+        self._backward = lambda: None
+    
+    def __add__(self, other):
+        """
+        Example implementation of a single class operation (addition)
+        
+        Args:
+            other (Any): Node to add with the class
+        
+        Returns:
+            out (callable): Function to referesh the gradient
+        """
+        #Firstly, convert some default value type in python to Value
+        #Then do operations with two or more Value object
+        other = other if isinstance(other, Value) else Value(other)
+
+        #Secondly, create a new Value object which is the result of the operation 
+        out = Value(self.data + other.data, (self, other))
+
+        #Thirdly, create a _backward function for the output object to refresh
+        # the gradient of its _childrens, 
+        #Then assign this _backward function to the output object.
+        def _backward():
+            self.grad += out.grad
+            other.grad += out.grad
+        out._backward = _backward
+
+        return out
+
+    def __mul__(self, other):
+        """
+        Multiplication operation (e.g. Value(3) * Value(2) = Value(6))
+        """
+        #Firstly, convert some default value type in python to Value
+        #Then do operations with two or more Value object
+        other = other if isinstance(other, Value) else Value(other)
+
+        #Secondly, create a new Value object which is the result of the operation 
+        out = Value(self.data * other.data, (self, other))
+
+        def _backward():
+            self.grad += out.grad * other.data
+            other.grad += out.grad * self.data
+        out._backward = _backward
+
+        return out
+    
+    def __pow__(self, other):
+        """
+        Power operation (e.g Value(3) ** 2 = Value(9))
+        """
+        assert isinstance(other, (int, float))
+
+        out = Value(self.data ** other, (self,))
+        
+        def _backward():
+            self.grad += (other * (self.data**(other-1))) * out.grad
+        out._backward = _backward
+
+        return out
+    
+    def relu(self):
+        """
+        ReLU activation function applied to the current Value
+        """
+        if self.data > 0:
+            out = Value(self.data, (self,))
+        else:
+            out = Value(0.0, (self,))
+        
+        def _backward():
+            self.grad += out.grad
+        out._backward = _backward
+
+        return out
+    
+    
+    def exp(self):
+        """
+        Exponentiate the current Value (e.g. e ^ Value(0) = Value(1))
+        """
+        out = Value(np.exp(self.data), (self,))
+
+        def _backward():
+            self.grad += np.exp(self.data) * out.grad
+        out._backward = _backward
+
+        return out
+    
+    def log(self):
+        """
+        Take the natural logarithm (base e) of the current Value
+        """
+        out = Value(np.log(self.data), (self,))
+
+        def _backward():
+            self.grad += (self.data ** (-1)) * out.grad
+        out._backward = _backward
+
+        return out
+    
+    def backward(self):
+        """
+        Run backpropagation from the current Value
+        """
+        #This function is called when you start backpropagation from this Value
+
+        #The gradient of this value is initialized to 1 for you.
+        self.grad = 1
+
+        #topological sort to find order of nodes to backpropagate
+        topo = []
+        def recur_nodes(curr):
+            for node in curr._prev:
+                recur_nodes(node)
+                if node not in topo:
+                    topo.insert(0,(node))
+        recur_nodes(self)
+        topo.insert(0,self)
+
+        #go one variable at a time and apply the chain rule to get its gradient
+
+        for v in topo:
+            v._backward()
+        print(topo)
+
+    # We handled the negation and reverse operations for you
+    def __neg__(self): # -self
+        """
+        Negate the current Value
+        """
+        return self * -1
+
+    def __radd__(self, other): #other + self
+        """
+        Reverse addition operation (ordering matters in Python)
+        """
+        return self + other
+    
+    def __sub__(self, other): # self - other
+        """
+        Subtraction operation
+        """
+        return self + (-other)
+    
+    def __rsub__(self, other): # other - self
+        """
+        Reverse subtraction operation
+        """
+        return other + (-self)
+    
+    def __rmul__(self, other): # other * self
+        """
+        Reverse multiplication operation
+        """
+        return self * other
+    
+    def __truediv__(self, other): # self / other
+        """
+        Division operation
+        """
+        return self * other**-1
+    
+    def __rtruediv__(self, other): # other / self
+        """
+        Reverse diction operation
+        """
+        return other * self**-1
+    
+    def __repr__(self):
+        """
+        Class representation (instead of unfriendly memory address)
+        """
+        return f"Value(data={self.data}, grad={self.grad})"
